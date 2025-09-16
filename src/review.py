@@ -1,9 +1,12 @@
+import logging
 import os
 from typing import List, Tuple
 from fnmatch import fnmatch
 from .llm import LLMClient
 from .github_client import GitHub
 from .prompts import SYSTEM_PROMPT, USER_TEMPLATE
+
+logger = logging.getLogger(__name__)
 
 MAX_TOTAL_BYTES = int(os.getenv("MAX_TOTAL_BYTES", "250000"))
 ALLOW_GLOBS = [g.strip() for g in os.getenv("ALLOW_GLOBS", "**/*.py,**/*.js,**/*.ts,**/*.tsx").split(",") if g.strip()]
@@ -31,7 +34,13 @@ async def build_diff_text(files: List[dict]) -> Tuple[str, List[str]]:
             continue
         b = len(patch.encode("utf-8"))
         if total + b > MAX_TOTAL_BYTES:
-            break
+            logger.info(
+                "Skipping %s: diff chunk (%s bytes) would exceed max total of %s bytes",
+                filename,
+                total + b,
+                MAX_TOTAL_BYTES,
+            )
+            continue
         diff_parts.append(f"--- {filename}\n{patch}\n")
         included.append(filename)
         total += b
