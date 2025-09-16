@@ -4,7 +4,7 @@ An automated code review bot that runs as a GitHub Action on pull requests and/o
 
 ## Features
 
-- LLM providers: OpenAI and Anthropic (auto-selects based on available keys)
+- LLM provider: OpenAI
 - Byte-budgeted diff ingestion to control token usage
 - Allow/Deny file globs to control which files are reviewed
 - GitHub Action workflow for zero-infra usage
@@ -15,7 +15,7 @@ An automated code review bot that runs as a GitHub Action on pull requests and/o
 - `src/main.py`: FastAPI app with `/health` and `POST /webhook/github`
 - `src/review.py`: Core review flow: fetch PR, build diff text, call LLM, create review
 - `src/github_client.py`: Minimal GitHub API client
-- `src/llm.py`: Provider-agnostic LLM client (OpenAI/Anthropic)
+- `src/llm.py`: LLM client (OpenAI-only)
 - `src/prompts.py`: System and user prompts
 - `.github/workflows/review.yml`: GitHub Action that runs on pull_request events
 - `Dockerfile`: Container entrypoint for FastAPI server
@@ -38,12 +38,10 @@ anyio==4.4.0
 
 ## Environment Variables
 
-Set at least one LLM API key.
+Set your OpenAI API key.
 
-- `OPENAI_API_KEY`: OpenAI API key (enables OpenAI)
+- `OPENAI_API_KEY`: OpenAI API key (required)
 - `OPENAI_MODEL`: Default `gpt-4o-mini`
-- `ANTHROPIC_API_KEY`: Anthropic API key (enables Anthropic)
-- `ANTHROPIC_MODEL`: Default `claude-3-5-sonnet-latest`
 - `MAX_TOTAL_BYTES`: Byte budget for diff text, default `250000`
 - `POST_INLINE_COMMENTS`: `true|false` (currently posts a single review body; inline comments reserved)
 - `REVIEW_TITLE`: Title prefix for the PR review comment, default `AI Review`
@@ -60,8 +58,7 @@ Tip: Create an `.env` locally for the server using `.env.example` as a reference
 The included workflow `.github/workflows/review.yml` runs on pull request events.
 
 1) Add repository secrets:
-   - `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` (one is required)
-   - Optionally both to allow fallback
+   - `OPENAI_API_KEY` (required)
 2) Commit the workflow (already present here). It will:
    - Check out the repo
    - Set up Python 3.11
@@ -109,7 +106,7 @@ docker run --rm -p 8000:8000 \
 
 1. `src/github_client.py` fetches PR metadata and changed files (paginated) via GitHub API
 2. `src/review.py` filters files using `ALLOW_GLOBS`/`DENY_GLOBS`, constructs a byte-limited unified diff blob
-3. `src/llm.py` selects OpenAI or Anthropic and produces a structured review using `src/prompts.py`
+3. `src/llm.py` uses OpenAI to produce a structured review using `src/prompts.py`
 4. The review is posted back via GitHub Reviews API as a single comment
 
 ## Configuration Tips
@@ -131,7 +128,7 @@ python -m pytest -q
 - Windows line endings: Git may warn about CRLF ↔ LF conversions; these are informational by default.
 - Git push errors like `src refspec main does not match any` usually mean there are no commits yet; run `git add . && git commit -m "msg"` first.
 - Ensure `GITHUB_TOKEN` is available in the environment (Actions provides `${{ secrets.GITHUB_TOKEN }}` automatically in the workflow).
-- LLM provider errors: Verify `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` is set and the model names are valid.
+- LLM provider errors: Verify `OPENAI_API_KEY` is set and the model name is valid.
 
 ## Security
 
